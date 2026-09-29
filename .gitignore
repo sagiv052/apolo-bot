@@ -1,0 +1,7 @@
+.env
+.apollo_state.json
+__pycache__/
+*.pyc
+runtime-state/
+.browser-profile/
+runtime-state/browser-profile/
