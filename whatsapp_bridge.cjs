@@ -92,7 +92,10 @@ const server = http.createServer(async (request, response) => {
         payload.image_base64,
         payload.image_filename || 'latest_browser.png',
       );
-      await client.sendMessage(target, media, { caption: String(payload.text || '') });
+      await client.sendMessage(target, media, {
+        sendMediaAsDocument: true,
+        caption: String(payload.text || ''),
+      });
     } else {
       const text = String(payload.text || '').trim();
       if (!text) throw new Error('message text is empty');
@@ -147,7 +150,7 @@ async function sendCommandReply(chatId, command, senderChatId = chatId, phone = 
         result.image_base64,
         result.image_filename || 'latest_browser.png',
       );
-      await client.sendMessage(chatId, image, { caption: '📸 צילום המסך האחרון של הדפדפן' });
+      await client.sendMessage(chatId, image, { sendMediaAsDocument: true });
     }
     if (!response.ok && !(result.messages || []).length) {
       await client.sendMessage(chatId, 'הפקודה נכשלה מול Apollo Monitor. בדוק שהמוניטור עדיין פועל.');
@@ -177,6 +180,12 @@ async function handleCommand(message) {
   const phone = await senderPhone(message, chatId);
   if (command === 'scan') {
     await client.sendMessage(chatId, 'קיבלתי, סורק עכשיו ומחפש משמרת חדשה.');
+  }
+  if (command === 'list_events') {
+    await client.sendMessage(chatId, '📋 קיבלתי, סורק מחדש ומכין רשימה של כל האירועים.');
+  }
+  if (command === 'screenshot') {
+    await client.sendMessage(chatId, '📸 קיבלתי, מצלם עכשיו את האתר.');
   }
   await sendCommandReply(chatId, command, chatId, phone);
 }

@@ -193,6 +193,7 @@ def handle_whatsapp_command(command: str, chat_id: str = "", phone: str = "") ->
         return {"messages": [
             "📋 הפקודות הזמינות:\n"
             "חיפוש משמרת חדשה\n"
+            "רשימת אירועים\n"
             "רשימת פקודות (גם: רשימת עדכונים)\n"
             "צילום מסך\n"
             "שלח לי עדכונים — הרשמה לאירועים חדשים\n"
@@ -201,14 +202,30 @@ def handle_whatsapp_command(command: str, chat_id: str = "", phone: str = "") ->
     if action == "scan":
         result = run_scan_locked()
         return {"messages": ["✅ הסריקה הסתיימה.", format_new_shift_result(result)]}
+    if action == "list_events":
+        try:
+            with SCAN_LOCK:
+                snapshot = login_and_capture()
+        except Exception as exc:
+            return {"messages": [f"לא הצלחתי לסרוק את האירועים עכשיו: {exc}"]}
+        if classify_state(snapshot) != "event_page":
+            return {"messages": ["לא הצלחתי לפתוח את רשימת האירועים באתר. בדוק שההתחברות פעילה ונסה שוב."]}
+        events = snapshot.get("events", [])
+        return {"messages": format_event_list_messages(events)}
     if action == "new_shift":
         result = run_scan_locked()
         return {"messages": [format_new_shift_result(result)]}
     if action == "screenshot":
+        try:
+            SCREENSHOT_FILE.unlink(missing_ok=True)
+            with SCAN_LOCK:
+                login_and_capture()
+        except Exception as exc:
+            return {"messages": [f"📸 לא הצלחתי לצלם עכשיו: {exc}"]}
         if not SCREENSHOT_FILE.exists():
-            return {"messages": ["📸 עדיין אין צילום מסך. הרץ סריקה אחת ואז נסה שוב."]}
+            return {"messages": ["📸 לא נוצר צילום מסך. בדוק שהחיבור לאתר הצליח ונסה שוב."]}
         return {
-            "messages": ["📸 צילום המסך האחרון של הדפדפן"],
+            "messages": ["📸 צילום מסך עדכני של האתר:"],
             "image_base64": base64.b64encode(SCREENSHOT_FILE.read_bytes()).decode("ascii"),
             "image_filename": SCREENSHOT_FILE.name,
         }
@@ -357,7 +374,7 @@ def extract_relevant_open_events(page: Any) -> list[dict[str, Any]]:
         if key not in seen:
             seen.add(key)
             unique.append(item)
-    return unique[:10]
+    return unique
 
 
 def parse_event_card_text(card_text: str) -> list[dict[str, Any]]:
@@ -628,7 +645,7 @@ def format_new_shift_result(result: dict[str, Any]) -> str:
     return "\n".join(lines)
 
 
-def format_event_list_messages(events: list[dict[str, Any]], max_length: int = 3900) -> list[str]:
+def format_event_list_messages(events: list[dict[str, Any]]) -> list[str]:
     if not events:
         return ["ℹ️ לא נמצאו כרגע אירועים מתאימים של סדרן ללא תעודה."]
 
@@ -641,21 +658,8 @@ def format_event_list_messages(events: list[dict[str, Any]], max_length: int = 3
             f"⏰ זמנים: {event['time']}",
         ]))
 
-    chunks: list[list[str]] = [[]]
-    for block in event_blocks:
-        candidate = "\n".join(chunks[-1] + [block])
-        if chunks[-1] and len(candidate) > max_length:
-            chunks.append([block])
-        else:
-            chunks[-1].append(block)
-
-    total_parts = len(chunks)
-    messages: list[str] = []
-    for part_index, chunk in enumerate(chunks, start=1):
-        part_label = f" — חלק {part_index}/{total_parts}" if total_parts > 1 else ""
-        header = f"📋 רשימת האירועים ({len(events)}){part_label} — נכון לסריקה האחרונה:"
-        messages.append(header + "\n" + "\n".join(chunk))
-    return messages
+    header = f"📋 רשימת האירועים ({len(events)}) — נסרקו עכשיו:"
+    return [header + "\n\n" + "\n\n".join(event_blocks)]
 
 
 def one_scan(notify: bool = True) -> dict[str, Any]:

@@ -4,6 +4,9 @@
   "private": true,
   "description": "WhatsApp Web linked-device bridge for the Apollo Security monitor",
   "main": "whatsapp_bridge.cjs",
+  "scripts": {
+    "postinstall": "node patch_whatsapp_web.cjs"
+  },
   "engines": {
     "node": ">=20"
   },

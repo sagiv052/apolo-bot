@@ -1,4 +1,5 @@
 import json
+import base64
 import tempfile
 import unittest
 from datetime import datetime
@@ -42,6 +43,7 @@ class WhatsAppSubscriptionTests(unittest.TestCase):
         help_text = monitor.handle_whatsapp_command("help")["messages"][0]
         for phrase in (
             "חיפוש משמרת חדשה",
+            "רשימת אירועים",
             "רשימת פקודות",
             "רשימת עדכונים",
             "צילום מסך",
@@ -51,6 +53,42 @@ class WhatsAppSubscriptionTests(unittest.TestCase):
             self.assertIn(phrase, help_text)
         self.assertNotIn("סריקה מיידית", help_text)
         self.assertNotIn("כמה סריקות", help_text)
+
+    def test_list_events_returns_all_events_in_one_formatted_message(self) -> None:
+        events = [
+            {"title": f"משמרת {index}", "place": "ירושלים", "date": "יום א 01.01.2027", "time": "09:00"}
+            for index in range(1, 13)
+        ]
+        snapshot = {
+            "url": monitor.EVENTS_URL + "/open-events",
+            "title": "אירועים",
+            "body_text": "",
+            "events": events,
+        }
+        with patch.object(monitor, "login_and_capture", return_value=snapshot) as capture:
+            result = monitor.handle_whatsapp_command("list_events")
+
+        capture.assert_called_once()
+        self.assertEqual(len(result["messages"]), 1)
+        for event in events:
+            self.assertIn(event["title"], result["messages"][0])
+        self.assertIn("📋 רשימת האירועים (12) — נסרקו עכשיו", result["messages"][0])
+
+    def test_screenshot_command_captures_fresh_image(self) -> None:
+        screenshot = self.root / "latest_browser.png"
+        screenshot.write_bytes(b"old image")
+
+        def capture() -> dict[str, object]:
+            screenshot.write_bytes(b"fresh image")
+            return {}
+
+        with (
+            patch.object(monitor, "SCREENSHOT_FILE", screenshot),
+            patch.object(monitor, "login_and_capture", side_effect=capture),
+        ):
+            result = monitor.handle_whatsapp_command("screenshot")
+
+        self.assertEqual(base64.b64decode(result["image_base64"]), b"fresh image")
 
     def test_new_event_and_time_update_are_sent_to_subscribers(self) -> None:
         event = {
