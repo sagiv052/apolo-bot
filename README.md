@@ -1,51 +1,88 @@
-# Apollo Security Telegram Monitor
+# Apollo Security Monitor — WhatsApp Web
 
-This project logs into the Apollo Security site, checks the open-events flow, and sends Telegram notifications when the visible event list changes.
+מנטר Apollo Security ששולח התראות ומקבל פקודות דרך **WhatsApp Web**, באמצעות קישור מכשיר וסריקת QR מהמסוף.
 
-## Setup
+## מה צריך
 
-1. Copy `.env.example` to `.env`.
-2. Fill in your Telegram bot token and chat ID.
-3. Install dependencies:
+- Python 3.11 ומעלה
+- Node.js 20 ומעלה
+- חשבון WhatsApp פעיל בטלפון
+- פרטי ההתחברות לאתר Apollo Security
+
+## התקנה ראשונה
+
+1. העתיקו את `.env.example` לקובץ `.env` ומלאו `SITE_USERNAME` ו־`SITE_PASSWORD`.
+2. התקינו את חבילות Python ואת Chromium של Playwright:
 
 ```bash
-pip install -r requirements.txt
-playwright install chromium
+python -m pip install -r requirements.txt
+python -m playwright install chromium
 ```
 
-## Run once
+3. התקינו את רכיבי WhatsApp Web:
 
 ```bash
-python apollo_monitor.py --once
+npm install
 ```
 
-## Run continuously every hour
+## הפעלה וקישור הטלפון
+
+הפעילו את המנטר מאותה תיקייה:
 
 ```bash
 python apollo_monitor.py
 ```
 
-## Notes
+בפעם הראשונה יופיע QR במסוף. בטלפון Android פתחו **WhatsApp → ⋮ → מכשירים מקושרים → קישור מכשיר** וסרקו את ה־QR שמופיע במסוף. לאחר הקישור המנטר שולח התראות, מבצע סריקה אחת מיד עם ההפעלה ואז סורק בכל שעה עגולה לפי שעון המחשב (כברירת מחדל), ומקבל פקודות WhatsApp.
 
-- The monitor intentionally treats `/onboarding` as a blocker state and will not try to force the app past it.
-- The site can redirect users into an onboarding questionnaire, so the bot waits for a valid event page before sending alerts.
-- The event detection is based on comparing page text snapshots between polls, which is robust when the site structure changes a little. The event filter keeps every event containing `סדרן ללא תעודה`, regardless of its location.
-- Each eligible shift is parsed separately at the `הרשמה / הגש מועמדות` boundary, so one Telegram message contains one shift and its time/place fields do not include button text.
-- A persistent `sent_events` journal is stored with the monitor state. It records sent event identities and their last reported time, preventing repeat alerts while still allowing a one-time time-change update.
-- `/start` displays Telegram buttons for status, an immediate scan, a test alert, and sending the latest browser screenshot.
-- Browser screenshots are saved to `latest_browser.png` after each important page transition and can be requested from the bot.
-- If the site opens the onboarding questionnaire instead of the login flow, the monitor closes the browser and retries indefinitely with a fresh browser instance. The delay is controlled by `RETRY_DELAY_SECONDS`.
-- Text commands `/status`, `/scan`, `/screenshot`, and `/test` are available in addition to the buttons.
-- The `🔎 בדיקת משמרת חדשה` button and `/new_shift` command run an immediate scan without changing the hourly schedule. A scan lock prevents a manual scan and the hourly scan from running simultaneously.
-- Event deduplication uses title and date. Changes to available seats are deliberately ignored.
-- Events are identified by title and date. If the time of an existing event changes, the bot sends an update containing both the previous and new times.
-- The browser User-Agent is configurable with `USER_AGENT` and defaults to a current Chrome-like desktop User-Agent.
-- The login flow verifies that both fields contain values and clicks the exact `button[type="submit"]` login button, avoiding the similarly named navigation tab. A live check confirmed successful navigation to `/dashboard`; the site then redirected to its onboarding questionnaire.
-- The browser now uses a persistent Chromium profile. Cookies, local storage, and session data are kept in `BROWSER_PROFILE_DIR`, so normal scans reuse the login session instead of filling credentials every hour.
-- The recovery flow opens `DASHBOARD_URL` first and clicks the visible `אירועים פתוחים להרשמה` link in the Dashboard. It does not navigate directly to `/open-events`. If the onboarding questionnaire appears it closes the persistent browser context and reopens the same cached profile before trying again.
+הקישור נשמר מקומית בתיקייה `.whatsapp-auth`, ולכן בהפעלות הבאות בדרך כלל אין צורך לסרוק שוב. השאירו את חלון המסוף פתוח בזמן שהמנטר צריך לעבוד.
 
-## GitHub Actions
+כברירת מחדל ההתראות נשלחות לצ'אט העצמי של חשבון WhatsApp שקושר. אם רוצים לשלוח למספר WhatsApp אחר, הגדירו ב־`.env` את `WHATSAPP_RECIPIENT` בפורמט בינלאומי עם ספרות בלבד, לדוגמה `972501234567`.
 
-The repository includes `.github/workflows/apollo-monitor.yml` for a scheduled one-shot scan. Add these repository secrets under **Settings → Secrets and variables → Actions**: `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`, `SITE_USERNAME`, and `SITE_PASSWORD`. The workflow installs Chromium, runs one scan, and preserves `.apollo_state.json` plus the latest screenshot through the Actions cache so event notifications are not duplicated between runs.
+## פקודות WhatsApp
 
-GitHub Actions is suitable for the hourly scan, but it is not a continuously running host. The Telegram listener required for `/start`, buttons, `/status`, `/scan`, and `/screenshot` is therefore not kept alive between scheduled runs. To use those interactive controls continuously, run the same project on an always-on Python service or virtual machine.
+שלחו בצ'אט פרטי לחשבון המקושר אחת מהפקודות הבאות, בדיוק כך:
+
+- `חיפוש משמרת חדשה` — מחפש משמרת וסורק את האתר
+- `רשימת פקודות` — מציג את רשימת הפקודות
+- `צילום מסך` — שולח את צילום המסך האחרון
+- `שלח לי עדכונים` — הרשמה לקבלת הודעות על אירועים חדשים ועל שינויי שעות
+- `הפסק עדכונים` — הסרה מרשימת העדכונים
+
+ההרשמה נשלחת בצ'אט פרטי; המנטר מאשר שהבקשה התקבלה ושומר את המספר/מזהה הצ'אט בקובץ `.whatsapp_subscribers.json` כדי לשלוח למנוי עדכוני אירועים גם אחרי הפעלה מחדש.
+
+## הפעלה חד־פעמית
+
+```bash
+python apollo_monitor.py --once
+```
+
+לבדיקת ההתראה:
+
+```bash
+python apollo_monitor.py --test-alert
+```
+
+בכל הפעלה המנטר פותח את גשר WhatsApp. אם זו הפעלה ראשונה, סרקו את ה־QR כשהוא מופיע במסוף; לאחר חיבור מוצלח תופיע הודעת `WhatsApp Web מחובר ומוכן`.
+
+## הגדרות
+
+ההגדרות נמצאות ב־`.env`; דוגמאות וערכי ברירת מחדל נמצאים ב־`.env.example`:
+
+- `SITE_USERNAME`, `SITE_PASSWORD` — פרטי Apollo Security.
+- `WHATSAPP_RECIPIENT` — יעד אופציונלי להתראות; ריק פירושו צ'אט עצמי.
+- `POLL_INTERVAL_SECONDS` — תדירות הסריקה; ברירת מחדל 3600 שניות, כלומר שעה עגולה לפי שעון המחשב.
+- `WHATSAPP_MESSAGE_DELAY_SECONDS` — השהיה בין הודעות התראה.
+- `WHATSAPP_AUTH_DIR` — תיקיית שמירת קישור המכשיר.
+- `WHATSAPP_BRIDGE_PORT`, `WHATSAPP_COMMAND_PORT` — פורטים מקומיים לגשר.
+- `HEADLESS`, `RETRY_DELAY_SECONDS`, `USER_AGENT` — הגדרות דפדפן וניסיון חוזר.
+
+## מה נשמר
+
+- מצב הסריקות: `.apollo_state.json`
+- פרופיל Apollo: `.browser-profile/`
+- קישור WhatsApp: `.whatsapp-auth/`
+- מנויי עדכונים: `.whatsapp_subscribers.json`
+- צילום מסך אחרון: `latest_browser.png`
+
+הסריקות, זיהוי אירועים קיימים ועדכוני שעות נשארו כפי שהיו בפרויקט. המעקב רץ מהמחשב שבו הפרויקט מופעל, ולכן יש להשאיר את המחשב ואת חלון המסוף פעילים בזמן הסריקה.

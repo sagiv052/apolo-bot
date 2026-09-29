@@ -1,0 +1,14 @@
+{
+  "name": "apollo-security-whatsapp-monitor",
+  "version": "1.0.0",
+  "private": true,
+  "description": "WhatsApp Web linked-device bridge for the Apollo Security monitor",
+  "main": "whatsapp_bridge.cjs",
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "qrcode-terminal": "0.12.0",
+    "whatsapp-web.js": "1.34.7"
+  }
+}

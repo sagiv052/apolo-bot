@@ -5,3 +5,7 @@ __pycache__/
 runtime-state/
 .browser-profile/
 runtime-state/browser-profile/
+.whatsapp-auth/
+.whatsapp_subscribers.json
+node_modules/
+latest_browser.png
