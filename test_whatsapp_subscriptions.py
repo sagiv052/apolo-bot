@@ -43,6 +43,7 @@ class WhatsAppSubscriptionTests(unittest.TestCase):
         for phrase in (
             "חיפוש משמרת חדשה",
             "רשימת פקודות",
+            "רשימת עדכונים",
             "צילום מסך",
             "שלח לי עדכונים",
             "הפסק עדכונים",

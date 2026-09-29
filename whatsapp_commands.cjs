@@ -1,7 +1,12 @@
 const COMMANDS = new Map([
   ['חיפוש משמרת חדשה', 'scan'],
+  ['סריקת משמרת חדשה', 'scan'],
+  ['סרוק משמרת חדשה', 'scan'],
+  ['סריקה מיידית', 'scan'],
   ['רשימת פקודות', 'help'],
+  ['רשימת עדכונים', 'help'],
   ['צילום מסך', 'screenshot'],
+  ['צילום מסך אחרון', 'screenshot'],
 ]);
 
 function actionFromBody(body) {

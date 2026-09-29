@@ -8,7 +8,6 @@ const PORT = Number(process.env.WHATSAPP_BRIDGE_PORT || 3021);
 const COMMAND_PORT = Number(process.env.WHATSAPP_COMMAND_PORT || 3022);
 const RECIPIENT = String(process.env.WHATSAPP_RECIPIENT || '').trim();
 const AUTH_DIR = path.resolve(process.env.WHATSAPP_AUTH_DIR || path.join(__dirname, '.whatsapp-auth'));
-const SELF_COMMANDS_ONLY = !RECIPIENT;
 let ready = false;
 let clientInfo = null;
 
@@ -107,9 +106,9 @@ const server = http.createServer(async (request, response) => {
 
 server.listen(PORT, '127.0.0.1', () => {
   console.log(`WhatsApp bridge listening locally on port ${PORT}`);
-  console.log(SELF_COMMANDS_ONLY
-    ? 'Alerts will be sent to the linked WhatsApp account (self-chat).'
-    : `Alerts will be sent to the configured recipient (${RECIPIENT}).`);
+  console.log(RECIPIENT
+    ? `Alerts will be sent to the configured recipient (${RECIPIENT}).`
+    : 'Alerts will be sent to the linked WhatsApp account (self-chat).');
 });
 
 client.on('qr', (qr) => {
@@ -175,15 +174,10 @@ async function handleCommand(message) {
   const command = actionFromBody(message.body);
   if (!command) return;
 
-  const selfJid = clientInfo?.wid?._serialized;
-  const sender = message.fromMe ? (message.to || message.from) : message.from;
-  const allowed = message.fromMe
-    ? (!SELF_COMMANDS_ONLY || sender === selfJid || message.from === selfJid)
-    : (!SELF_COMMANDS_ONLY && sender === recipientJid());
-  const subscriptionCommand = command === 'subscribe' || command === 'unsubscribe';
-  if (!allowed && !subscriptionCommand) return;
-
   const phone = await senderPhone(message, chatId);
+  if (command === 'scan') {
+    await client.sendMessage(chatId, 'קיבלתי, סורק עכשיו ומחפש משמרת חדשה.');
+  }
   await sendCommandReply(chatId, command, chatId, phone);
 }
 
