@@ -801,7 +801,10 @@ if __name__ == "__main__":
         raise SystemExit(1)
     console_log("🚀 מפעיל את Apollo Monitor ופותח WhatsApp Web…")
     if not wait_for_whatsapp_ready():
-        console_log("⌛ WhatsApp עדיין לא התחבר. סרוק את ה-QR שמופיע במסוף; ההתראות יתחילו לאחר החיבור.")
+        if _whatsapp_bridge_process is not None and _whatsapp_bridge_process.poll() is not None:
+            console_log("❌ גשר WhatsApp קרס לפני שהציג QR. בדוק את שגיאת Node שמופיעה למעלה; עדיין אין מה לסרוק.")
+        else:
+            console_log("⌛ WhatsApp עדיין לא התחבר. אם מופיע QR במסוף, סרוק אותו; ההתראות יתחילו לאחר החיבור.")
 
     try:
         if args.test_alert:
